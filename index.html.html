@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Expense Tracker Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        /* ---- Ultimate Pro UI Variables (Eco Wealth Theme) ---- */
+        :root {
+            --primary: #10b981; 
+            --primary-glow: linear-gradient(135deg, #34d399, #059669);
+            --bg: #f8fafc; 
+            --card: #ffffff;
+            --text: #0f172a; 
+            --text-muted: #64748b; 
+            --danger: #ef4444;
+            --success: #10b981;
+            --edit: #0ea5e9;
+            --border: #e2e8f0; 
+            --bubble-bg: #f1f5f9;
+            --input-bg: #f8fafc;
+            --toggle-track: rgba(100, 116, 139, 0.1);
+            --toggle-knob: #ffffff;
+            --shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            --glass: rgba(255, 255, 255, 0.7);
+            --modal-bg: rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="dark"] {
+            --primary: #10b981; 
+            --bg: #09090b; 
+            --card: #141417; 
+            --text: #f1f5f9; 
+            --text-muted: #94a3b8; 
+            --danger: #fb7185;
+            --border: #27272a; 
+            --bubble-bg: #1f1f23;
+            --input-bg: #09090b;
+            --toggle-track: rgba(255, 255, 255, 0.1);
+            --toggle-knob: #f8fafc;
+            --shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+            --glass: rgba(20, 20, 23, 0.8);
+            --modal-bg: rgba(0, 0, 0, 0.8);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s, border-color 0.3s; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); display: flex; justify-content: center; overflow: hidden; height: 100vh; position: relative; }
+        
+        .app { width: 100%; max-width: 480px; height: 100vh; display: flex; flex-direction: column; position: relative; }
+
+        /* Floating Top Bar */
+        .top-bar {
+            position: absolute; top: 0; left: 0; right: 0; height: 60px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 16px; z-index: 1001; background: var(--glass);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .realtime-clock {
+            font-size: 14px; font-weight: 700; color: var(--text);
+            font-variant-numeric: tabular-nums; letter-spacing: 0.5px;
+            background: var(--toggle-track); padding: 6px 12px; border-radius: 30px;
+        }
+
+        .theme-toggle { width: 50px; height: 26px; background: var(--toggle-track); border-radius: 30px; display: flex; align-items: center; padding: 0 4px; cursor: pointer; border: 1px solid var(--border); }
+        .toggle-knob { width: 18px; height: 18px; background: var(--toggle-knob); border-radius: 50%; transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        [data-theme="dark"] .toggle-knob { transform: translateX(24px); }
+
+        /* Main Content */
+        .main { flex: 1; overflow-y: auto; padding: 75px 16px 100px; scroll-behavior: smooth; overflow-x: hidden;}
+        .tab-content { display: none; width: 100%; }
+        .tab-content.active { display: block; }
+        
+        /* Swipe Animations */
+        .tab-content.slide-left { animation: slideLeft 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+        .tab-content.slide-right { animation: slideRight 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+        .tab-content.fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideLeft { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideRight { from { opacity: 0; transform: translateX(-50px); } to { opacity: 1; transform: translateX(0); } }
+
+        /* Navigation */
+        .nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 480px; background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; justify-content: space-around; padding: 12px 0 24px; border-top: 1px solid var(--border); z-index: 1000; }
+        .nav-item { text-align: center; font-size: 11px; color: var(--text-muted); cursor: pointer; flex: 1; font-weight: 600; }
+        .nav-item i { display: block; font-size: 20px; margin-bottom: 4px; transition: transform 0.2s; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active i { transform: scale(1.15) translateY(-2px); }
+
+        /* Cards & Summary */
+        .summary-card { background: var(--primary-glow); color: white; padding: 24px; border-radius: 24px; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4); text-align: center; position: relative; }
+        .summary-card h2 { font-size: 34px; margin-top: 5px; font-weight: 800; letter-spacing: -1px; }
+        .card { background: var(--card); padding: 20px; border-radius: 24px; border: 1px solid var(--border); margin-bottom: 20px; box-shadow: var(--shadow); }
+        .section-title { font-weight: 700; font-size: 14px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+
+        /* Cloud Sync Button inside History */
+        .sync-btn { position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.25); border: none; color: white; padding: 6px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; }
+        .sync-btn:active { transform: scale(0.95); }
+
+        /* Inputs */
+        .input-group { margin-bottom: 16px; }
+        label { display: block; font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+        input { width: 100%; padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; font-size: 15px; background: var(--input-bg); color: var(--text); outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); background: var(--card); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .btn { width: 100%; padding: 15px; background: var(--primary); color: white; border: none; border-radius: 14px; font-weight: 700; font-size: 15px; cursor: pointer; transition: transform 0.2s, background 0.2s; }
+        .btn:active { transform: scale(0.96); opacity: 0.9; }
+
+        /* Bubbles */
+        .h-scroll { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 12px; scrollbar-width: none; }
+        .h-scroll::-webkit-scrollbar { display: none; }
+        .meal-bubble { padding: 12px 18px; border-radius: 18px; font-size: 13px; font-weight: 700; color: white; white-space: nowrap; cursor: pointer; border: none; display: flex; flex-direction: column; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .meal-morning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .meal-lunch { background: linear-gradient(135deg, #10b981, #059669); }
+        .meal-dinner { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+        .meal-bubble span { font-size: 11px; opacity: 0.9; font-weight: 500; margin-top: 2px; }
+        .cat-bubble { padding: 10px 20px; background: var(--bubble-bg); border-radius: 30px; font-size: 13px; white-space: nowrap; cursor: pointer; color: var(--text-muted); font-weight: 600; border: 1px solid transparent; transition: 0.2s; }
+        .cat-bubble.active { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+
+        /* Lists */
+        .list-item { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
+        .list-item:last-child { border-bottom: none; }
+        
+        /* Swipeable Lists */
+        .swipe-wrapper { position: relative; overflow: hidden; border-bottom: 1px solid var(--border); touch-action: pan-y; }
+        .swipe-wrapper:last-child { border-bottom: none; }
+        .swipe-content { display: flex; justify-content: space-between; align-items: center; padding: 16px 0; background: var(--card); position: relative; z-index: 2; width: 100%; transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .swipe-actions { position: absolute; top: 0; right: 0; height: 100%; display: flex; align-items: center; gap: 10px; z-index: 1; padding-left: 15px; }
+
+        .item-info h4 { font-size: 15px; color: var(--text); font-weight: 600; margin-bottom: 2px; }
+        .item-info p { font-size: 12px; color: var(--text-muted); }
+        .item-amount { font-weight: 700; font-size: 15px; color: var(--danger); }
+        .action-btns { display: flex; gap: 10px; }
+        .icon-btn { border: none; background: var(--bubble-bg); border-radius: 10px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; }
+        .btn-edit { color: var(--edit); }
+        .btn-del { color: var(--danger); }
+
+        /* Comparisons */
+        .comp-grid { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .comp-card { background: var(--input-bg); padding: 16px; border-radius: 18px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .comp-title { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+        .comp-val { font-size: 17px; font-weight: 700; color: var(--text); margin-top: 2px; }
+        .trend { font-size: 11px; font-weight: 700; padding: 6px 12px; border-radius: 30px; }
+        .trend.up { color: var(--danger); background: rgba(239, 68, 68, 0.12); } 
+        .trend.down { color: var(--success); background: rgba(16, 185, 129, 0.12); } 
+        .trend.neutral { color: var(--text-muted); background: var(--border); }
+
+        /* Savings Pill */
+        .savings-sub-info { display: flex; justify-content: center; margin-top: -12px; margin-bottom: 20px; }
+        .savings-sub-pill { background: var(--card); border: 1px solid var(--border); padding: 8px 18px; border-radius: 30px; font-size: 12px; font-weight: 700; color: var(--text-muted); box-shadow: var(--shadow); }
+        .savings-sub-pill b { color: var(--primary); margin-left: 4px; }
+        
+        /* --- Multi Goal Tracker Custom CSS --- */
+        .goal-card { background: var(--input-bg); border: 1px solid var(--border); border-radius: 16px; margin-bottom: 15px; overflow: hidden; }
+        .goal-header { padding: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: var(--card); transition: background 0.3s; }
+        .goal-header:active { background: var(--bubble-bg); }
+        .goal-header h4 { margin-bottom: 4px; font-size: 15px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .goal-header p { font-size: 12px; color: var(--text-muted); }
+        .goal-body { padding: 15px; display: none; border-top: 1px solid var(--border); }
+        .goal-body.active { display: block; animation: fadeIn 0.3s ease-out; }
+        
+        .goal-summary { display: flex; justify-content: space-between; background: var(--bubble-bg); padding: 15px; border-radius: 12px; margin-bottom: 15px; font-size: 13px; font-weight: 600; border: 1px solid var(--border); }
+        .goal-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; max-height: 280px; overflow-y: auto; padding-right: 5px; scrollbar-width: thin; }
+        .goal-grid::-webkit-scrollbar { width: 5px; }
+        .goal-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .goal-box { padding: 12px 5px; border-radius: 12px; text-align: center; font-size: 13px; font-weight: 800; cursor: pointer; transition: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .goal-box:active { transform: scale(0.9); }
+        .goal-box.unpaid { background: var(--danger); }
+        .goal-box.paid { background: var(--success); opacity: 0.6; box-shadow: none; border: 1px solid var(--success); }
+        .goal-box span { font-size: 10px; opacity: 0.9; font-weight: 600; margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .goal-completed-banner { background: var(--success); color: white; padding: 15px; border-radius: 12px; text-align: center; font-weight: 700; margin-bottom: 15px; }
+
+        /* Chart */
+        .chart-container { height: 260px; margin-top: 10px; }
+
+        /* Custom Modals & Toasts */
+        .toast-notification {
+            position: fixed; bottom: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--card); color: var(--text); padding: 16px 20px;
+            border-radius: 20px; box-shadow: 0 15px 40px -10px rgba(0,0,0,0.2);
+            border: 1px solid var(--border); border-left: 5px solid var(--primary);
+            z-index: 2000; display: flex; align-items: center; gap: 15px;
+            transition: bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            width: 90%; max-width: 400px;
+        }
+        .toast-notification.show { bottom: 95px; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--modal-bg); z-index: 3000; display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(5px); opacity: 0; transition: opacity 0.3s ease;
+        }
+        .modal-overlay.show { opacity: 1; display: flex; }
+        .modal-content {
+            background: var(--card); width: 85%; max-width: 320px; border-radius: 24px; padding: 24px; text-align: center;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); transform: scale(0.9); transition: transform 0.3s ease;
+        }
+        .modal-overlay.show .modal-content { transform: scale(1); }
+        .modal-content h3 { margin-bottom: 10px; color: var(--text); font-size: 18px; }
+        .modal-content p { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; line-height: 1.4;}
+        .modal-actions { display: flex; gap: 12px; }
+    </style>
+</head>
+<body>
+
+<div class="app" id="app-body">
+    <div class="top-bar">
+        <div class="realtime-clock" id="liveClock">00:00:00 AM</div>
+        <div class="theme-toggle" onclick="toggleTheme()">
+            <div class="toggle-knob"></div>
+        </div>
+    </div>
+
+    <div class="main" id="mainContainer">
+        <!-- HOME TAB -->
+        <div id="home" class="tab-content active">
+            <div class="summary-card">
+                <p style="opacity: 0.9; font-size: 13px; font-weight: 600;">Today's Spending</p>
+                <h2 id="todayTotalDisplay">Rs. 0.00</h2>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-bolt" style="color:#f59e0b"></i> Quick Access</div>
+                <div class="h-scroll">
+                    <div class="meal-bubble meal-morning" onclick="quickMeal('Breakfast', 100)">Breakfast <span>Rs. 100</span></div>
+                    <div class="meal-bubble meal-lunch" onclick="quickMeal('Lunch', 120)">Lunch <span>Rs. 120</span></div>
+                    <div class="meal-bubble meal-lunch" onclick="quickMeal('Lunch', 130)">Lunch <span>Rs. 130</span></div>
+                    <div class="meal-bubble meal-dinner" onclick="quickMeal('Dinner', 120)">Dinner <span>Rs. 120</span></div>
+                    <div class="meal-bubble meal-dinner" onclick="quickMeal('Dinner', 130)">Dinner <span>Rs. 130</span></div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <div class="input-group">
+                        <label>Description</label>
+                        <input type="text" id="desc" placeholder="What did you buy?">
+                    </div>
+                    <div class="input-group">
+                        <label>Category</label>
+                        <div class="h-scroll" id="catBubbles">
+                            <div class="cat-bubble active" onclick="selectCat(this, 'Food')" id="bubble-food">Food</div>
+                            <div class="cat-bubble" onclick="selectCat(this, 'Transport')" id="bubble-transport">Transport</div>
+                            <div class="cat-bubble" onclick="selectCat(this, 'Stationery')" id="bubble-stationery">Stationery</div>
+                            <div class="cat-bubble" onclick="selectCat(this, 'Other')" id="bubble-other">Other</div>
+                        </div>
+                        <div id="customCatWrapper" style="display:none; margin-top:12px;">
+                            <input type="text" id="customCatInput" placeholder="Type custom category...">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Amount (Rs.)</label>
+                        <input type="number" id="amt" placeholder="0.00">
+                    </div>
+                    <button class="btn" id="submitBtn" onclick="saveExpense()">Add Expense</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="section-title"><i class="fas fa-list"></i> Today's Entries</div>
+                <div id="todayLog"></div>
+            </div>
+        </div>
+
+        <!-- HISTORY TAB -->
+        <div id="history" class="tab-content">
+            <div class="summary-card" style="padding: 20px;">
+                <button onclick="fetchFromCloud()" style="position: absolute; top: 15px; right: 15px; background: rgba(255,255,255,0.2); border: none; color: white; padding: 6px 12px; border-radius: 12px; font-size: 11px; cursor: pointer; font-weight: 700; display: flex; align-items: center; gap: 5px;"><i class="fas fa-cloud-download-alt"></i> Fetch Cloud</button>
+                <p id="filterTitle" style="font-size: 13px; opacity: 0.9; font-weight: 600;">Total (This Month)</p>
+                <h2 id="historyTotalDisplay" style="font-size: 28px;">Rs. 0.00</h2>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-filter"></i> Filters</div>
+                <div class="h-scroll" id="historyFilters">
+                    <div class="cat-bubble" onclick="setFilter(this, 'today')">Today</div>
+                    <div class="cat-bubble" onclick="setFilter(this, 'week')">Weekly</div>
+                    <div class="cat-bubble active" onclick="setFilter(this, 'month')">Monthly</div>
+                    <div class="cat-bubble" onclick="setFilter(this, 'all')">All Time</div>
+                </div>
+                <!-- Sub Filters (Weeks/Months) -->
+                <div class="h-scroll" id="subFilters" style="display:none; margin-top: 10px;"></div>
+
+                <div class="input-group" style="margin-top: 15px; margin-bottom: 0;">
+                    <input type="text" id="search" placeholder="Search entries..." onkeyup="loadHistory()">
+                </div>
+            </div>
+
+            <div class="card">
+                <div id="historyLog" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                <button class="btn" style="background: var(--text);" onclick="exportPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn" style="background: var(--primary);" onclick="exportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+            </div>
+        </div>
+
+        <!-- STATS TAB -->
+        <div id="stats" class="tab-content">
+            <div class="summary-card" style="background: var(--primary-glow);">
+                <p style="opacity: 0.9; font-size: 13px; font-weight: 600;">Total Expenses</p>
+                <h2 id="allTimeTotalDisplay">Rs. 0.00</h2>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-chart-line"></i> Spend Comparisons</div>
+                <div class="comp-grid">
+                    <div class="comp-card">
+                        <div>
+                            <div class="comp-title">Today vs Yesterday</div>
+                            <div class="comp-val">Rs. <span id="compToday">0</span></div>
+                        </div>
+                        <div id="trendToday" class="trend neutral">0% Same</div>
+                    </div>
+                    <div class="comp-card">
+                        <div>
+                            <div class="comp-title">Last 7d vs Previous 7d</div>
+                            <div class="comp-val">Rs. <span id="compWeek">0</span></div>
+                        </div>
+                        <div id="trendWeek" class="trend neutral">0% Same</div>
+                    </div>
+                    <div class="comp-card">
+                        <div>
+                            <div class="comp-title">This Month vs Last</div>
+                            <div class="comp-val">Rs. <span id="compMonth">0</span></div>
+                        </div>
+                        <div id="trendMonth" class="trend neutral">0% Same</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-chart-bar"></i> Category Distribution</div>
+                <div class="chart-container"><canvas id="myChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- SAVINGS TAB -->
+        <div id="savings" class="tab-content">
+            <div class="summary-card" style="background: linear-gradient(135deg, #059669, #064e3b);">
+                <p style="opacity: 0.9; font-size: 13px; font-weight: 600;">Current Balance</p>
+                <h2 id="totalSavingsDisplay">Rs. 0.00</h2>
+            </div>
+
+            <div class="savings-sub-info">
+                <div class="savings-sub-pill">Total Deposited: <b id="totalDepositedDisplay">Rs. 0.00</b></div>
+            </div>
+
+            <!-- ENHANCED TARGET GOALS (Multiple Goals + Expandable + Names) -->
+            <div class="card" id="goalSection">
+                <div class="section-title"><i class="fas fa-bullseye" style="color:var(--danger)"></i> Target Savings Goals</div>
+                
+                <!-- Setup New Goal UI always visible at top of section -->
+                <div style="margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px dashed var(--border);">
+                    <p style="font-size:12px; color:var(--text-muted); margin-bottom:15px; line-height: 1.4;">Enter a goal name and target amount. It will be automatically divided into Rs. 100 parts.</p>
+                    <div class="input-group">
+                        <label>Goal Name</label>
+                        <input type="text" id="goalNameInput" placeholder="e.g. New Phone">
+                    </div>
+                    <div class="input-group">
+                        <label>Target Amount (Rs.)</label>
+                        <input type="number" id="goalTargetInput" placeholder="e.g. 5000">
+                    </div>
+                    <button class="btn" onclick="startSavingsGoal()" style="background: var(--danger);"><i class="fas fa-flag-checkered"></i> Create New Goal</button>
+                </div>
+                
+                <!-- Goals List Container -->
+                <div id="goalsContainer"></div>
+                
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-exchange-alt"></i> Manage Funds</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+                    <button class="btn" style="background: var(--success); font-size: 13px; box-shadow: none;" onclick="setTransactionType('deposit')"><i class="fas fa-plus-circle"></i> Deposit</button>
+                    <button class="btn" style="background: var(--danger); font-size: 13px; box-shadow: none;" onclick="setTransactionType('withdraw')"><i class="fas fa-minus-circle"></i> Withdraw</button>
+                </div>
+                <div class="input-group">
+                    <label id="savingsActionLabel">Amount to Deposit (Rs.)</label>
+                    <input type="number" id="savingsAmountInput" placeholder="0.00">
+                </div>
+                <button class="btn" id="savingsSubmitBtn" onclick="processSavingsTransaction('deposit')" style="background: var(--success);">Confirm Deposit</button>
+            </div>
+
+            <div class="card">
+                <div class="section-title"><i class="fas fa-receipt"></i> Savings History</div>
+                <div id="savingsLog" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="nav">
+        <div class="nav-item active" onclick="showTab('home')" id="n-home"><i class="fas fa-layer-group"></i>Home</div>
+        <div class="nav-item" onclick="showTab('history')" id="n-history"><i class="fas fa-history"></i>History</div>
+        <div class="nav-item" onclick="showTab('stats')" id="n-stats"><i class="fas fa-chart-pie"></i>Stats</div>
+        <div class="nav-item" onclick="showTab('savings')" id="n-savings"><i class="fas fa-wallet"></i>Savings</div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast-notification" id="reminderToast">
+        <i class="fas fa-info-circle" style="color: var(--primary); font-size: 22px;"></i>
+        <div style="flex: 1;">
+            <p style="font-weight: 700; font-size: 14px; margin-bottom: 2px;" id="reminderToastTitle">Notification</p>
+            <p id="reminderToastMsg" style="font-size: 12px; color: var(--text-muted); line-height: 1.4;"></p>
+        </div>
+        <button onclick="closeToast()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="confirmDeleteModal">
+        <div class="modal-content">
+            <h3>Delete Record</h3>
+            <p>Are you sure you want to permanently delete this record? This action cannot be undone.</p>
+            <div class="modal-actions">
+                <button class="btn" style="background: var(--bubble-bg); color: var(--text); box-shadow: none;" onclick="closeDeleteModal()">Cancel</button>
+                <button class="btn" style="background: var(--danger); box-shadow: none;" id="confirmDeleteBtn">Yes, Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ======= GOOGLE APPS SCRIPT URL =======
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyfjdPKDmWrSUTLGfoxIotGafu9qGly4u3B-E0-_2vQKx-hYdTrNvsoM6gGz0V2ILTh/exec"; 
+    // ============================================
+
+    function getLocalDateString(val) {
+        let d = val ? new Date(val) : new Date();
+        if (isNaN(d.getTime())) d = new Date();
+        
+        let year = d.getFullYear();
+        let month = String(d.getMonth() + 1).padStart(2, '0');
+        let day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    let toastTimeout;
+    function showToast(title, msg, isError = false) {
+        const toast = document.getElementById('reminderToast');
+        document.getElementById('reminderToastTitle').innerText = title;
+        document.getElementById('reminderToastMsg').innerText = msg;
+        toast.style.borderLeftColor = isError ? 'var(--danger)' : 'var(--primary)';
+        toast.querySelector('i').style.color = isError ? 'var(--danger)' : 'var(--primary)';
+        toast.classList.add('show');
+        clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(() => toast.classList.remove('show'), 4000);
+    }
+    function closeToast() { document.getElementById('reminderToast').classList.remove('show'); }
+
+    let itemToDelete = null; let deleteCallback = null;
+    function promptDelete(id, callback) {
+        itemToDelete = id; deleteCallback = callback;
+        document.getElementById('confirmDeleteModal').classList.add('show');
+    }
+    function closeDeleteModal() {
+        document.getElementById('confirmDeleteModal').classList.remove('show');
+        itemToDelete = null;
+    }
+    document.getElementById('confirmDeleteBtn').onclick = () => {
+        if(deleteCallback && itemToDelete !== null) deleteCallback(itemToDelete);
+        closeDeleteModal();
+    };
+
+    function updateClock() {
+        const now = new Date();
+        let h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+        let ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12 || 12;
+        h = h < 10 ? '0' + h : h; m = m < 10 ? '0' + m : m; s = s < 10 ? '0' + s : s;
+        document.getElementById('liveClock').innerText = `${h}:${m}:${s} ${ampm}`;
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    let expenses = JSON.parse(localStorage.getItem('campus_wallet')) || [];
+    let savingsData = JSON.parse(localStorage.getItem('campus_savings')) || { balance: 0, history: [] };
+    
+    // Multiple Goals List
+    let goalsList = JSON.parse(localStorage.getItem('campus_savings_goals')) || [];
+    let expandedGoalId = null;
+
+    let selectedCategory = "Food"; 
+    let editingId = null; 
+    let currentHistoryFilter = 'month';
+    let currentSubFilterValue = new Date().getMonth();
+    let chart = null;
+
+    function getCurrentWeek() {
+        let day = new Date().getDate();
+        let w = Math.ceil(day / 7);
+        return w > 4 ? 5 : w;
+    }
+
+    const currentTheme = localStorage.getItem('theme') || 'light';
+    if (currentTheme === 'dark') document.body.setAttribute('data-theme', 'dark');
+
+    function toggleTheme() {
+        if (document.body.getAttribute('data-theme') === 'dark') {
+            document.body.removeAttribute('data-theme'); localStorage.setItem('theme', 'light');
+        } else {
+            document.body.setAttribute('data-theme', 'dark'); localStorage.setItem('theme', 'dark');
+        }
+        if(chart) renderChart();
+    }
+
+    const tabsList = ['home', 'history', 'stats', 'savings'];
+    let currentTabIndex = 0;
+
+    function showTab(t, swipeDirection = null) {
+        let newIndex = tabsList.indexOf(t);
+        let animationClass = 'fade-in';
+        
+        if (swipeDirection === 'left') animationClass = 'slide-left';
+        else if (swipeDirection === 'right') animationClass = 'slide-right';
+        else if (newIndex > currentTabIndex) animationClass = 'slide-left';
+        else if (newIndex < currentTabIndex) animationClass = 'slide-right';
+
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active', 'slide-left', 'slide-right', 'fade-in'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        let targetTab = document.getElementById(t);
+        targetTab.classList.add('active', animationClass);
+        document.getElementById('n-'+t).classList.add('active');
+        
+        currentTabIndex = newIndex; window.scrollTo(0,0);
+
+        if(t === 'history') loadHistory();
+        if(t === 'stats') updateStatsTab();
+        if(t === 'savings') updateSavingsTab();
+    }
+
+    let touchStartX = 0, touchStartY = 0, touchEndX = 0, touchEndY = 0;
+    const mainContainer = document.getElementById('mainContainer');
+
+    mainContainer.addEventListener('touchstart', e => {
+        touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY;
+    }, {passive: true});
+
+    mainContainer.addEventListener('touchend', e => {
+        touchEndX = e.changedTouches[0].screenX; touchEndY = e.changedTouches[0].screenY;
+        handleSwipe();
+    }, {passive: true});
+
+    function handleSwipe() {
+        const SWIPE_THRESHOLD_X = 60, SWIPE_THRESHOLD_Y = 50; 
+        let diffX = touchEndX - touchStartX, diffY = touchEndY - touchStartY;
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > SWIPE_THRESHOLD_X) {
+            if (diffX < 0 && currentTabIndex < tabsList.length - 1) showTab(tabsList[currentTabIndex + 1], 'left'); 
+            else if (diffX > 0 && currentTabIndex > 0) showTab(tabsList[currentTabIndex - 1], 'right'); 
+        }
+    }
+
+    function quickMeal(name, price) {
+        document.getElementById('desc').value = name; document.getElementById('amt').value = price;
+        selectCat(document.getElementById('bubble-food'), 'Food');
+    }
+
+    function selectCat(el, cat) {
+        document.querySelectorAll('#catBubbles .cat-bubble').forEach(b => b.classList.remove('active'));
+        el.classList.add('active'); selectedCategory = cat;
+        document.getElementById('customCatWrapper').style.display = (cat === 'Other') ? 'block' : 'none';
+    }
+
+    function saveExpense() {
+        let desc = document.getElementById('desc').value;
+        let amt = parseFloat(document.getElementById('amt').value);
+        let finalCat = selectedCategory === 'Other' ? document.getElementById('customCatInput').value : selectedCategory;
+        
+        if(!desc || isNaN(amt) || amt <= 0 || (selectedCategory === 'Other' && !finalCat.trim())) {
+            showToast("Missing Info", "Please fill all details properly.", true); return;
+        }
+
+        let newExpense = { id: Date.now(), date: getLocalDateString(new Date()), desc: desc, cat: finalCat, amt: amt };
+        let isEditing = false;
+
+        if (editingId) {
+            let i = expenses.findIndex(e => e.id === editingId);
+            expenses[i] = {...expenses[i], desc: desc, amt: amt, cat: finalCat};
+            newExpense = expenses[i];
+            editingId = null;
+            isEditing = true;
+            document.getElementById('submitBtn').innerText = "Add Expense";
+        } else {
+            expenses.push(newExpense);
+        }
+
+        localStorage.setItem('campus_wallet', JSON.stringify(expenses));
+        document.getElementById('desc').value = ''; document.getElementById('amt').value = '';
+        if(selectedCategory === 'Other') document.getElementById('customCatInput').value = '';
+        refresh();
+        showToast("Saved", "Record saved. Syncing to cloud...");
+
+        if (isEditing) {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({action: 'delete', id: newExpense.id}) })
+            .then(() => fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({...newExpense, action: 'add'}) }))
+            .catch(e => console.error("Sync Error", e));
+        } else {
+            fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({...newExpense, action: 'add'}) })
+            .catch(e => console.error("Sync Error", e));
+        }
+    }
+
+    function refresh() {
+        let today = getLocalDateString(new Date());
+        let todayData = expenses.filter(e => e.date === today);
+        document.getElementById('todayTotalDisplay').innerText = `Rs. ${todayData.reduce((s, e) => s + e.amt, 0).toFixed(2)}`;
+        let log = document.getElementById('todayLog'); log.innerHTML = '';
+        if(todayData.length === 0) log.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding: 10px 0;">No entries for today.</p>';
+        todayData.reverse().forEach(e => {
+            log.innerHTML += `<div class="swipe-wrapper" ontouchstart="handleItemSwipeStart(event)" ontouchmove="handleItemSwipeMove(event)" ontouchend="handleItemSwipeEnd(event)">
+                <div class="swipe-content" data-swiped="false">
+                    <div class="item-info"><h4>${e.desc}</h4><p>${e.cat}</p></div>
+                    <span class="item-amount" style="color:var(--text);">Rs. ${e.amt.toFixed(2)}</span>
+                </div>
+                <div class="swipe-actions">
+                    <button class="icon-btn btn-edit" onclick="editExp(${e.id})"><i class="fas fa-pen"></i></button>
+                    <button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+        });
+    }
+
+    function editExp(id) {
+        let e = expenses.find(x => x.id === id);
+        document.getElementById('desc').value = e.desc; document.getElementById('amt').value = e.amt;
+        let presets = ['Food', 'Transport', 'Stationery'];
+        if (presets.includes(e.cat)) selectCat(document.getElementById('bubble-' + e.cat.toLowerCase()), e.cat);
+        else { selectCat(document.getElementById('bubble-other'), 'Other'); document.getElementById('customCatInput').value = e.cat; }
+        editingId = id; document.getElementById('submitBtn').innerText = "Update Expense";
+        showTab('home');
+    }
+
+    function execDeleteExp(id) {
+        expenses = expenses.filter(x => x.id !== id);
+        localStorage.setItem('campus_wallet', JSON.stringify(expenses));
+        refresh();
+        if(document.getElementById('history').classList.contains('active')) loadHistory();
+        showToast("Deleted", "Record removed. Syncing to cloud...");
+
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({action: 'delete', id: id})
+        }).catch(e => console.error("Cloud Delete Error", e));
+    }
+
+    async function fetchFromCloud() {
+        showToast("Syncing...", "Fetching data from cloud.");
+        try {
+            let res = await fetch(SCRIPT_URL);
+            let cloudData = await res.json();
+            
+            expenses = cloudData.map(e => {
+                e.date = getLocalDateString(e.date);
+                e.amt = parseFloat(e.amt) || 0;
+                return e;
+            });
+            
+            localStorage.setItem('campus_wallet', JSON.stringify(expenses));
+            refresh(); loadHistory();
+            showToast("Success", "Cloud data loaded successfully!");
+        } catch(e) {
+            showToast("Error", "Failed to fetch from cloud. Using local data.", true);
+            loadHistory();
+        }
+    }
+
+    function setFilter(el, type) {
+        document.querySelectorAll('#historyFilters .cat-bubble').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        currentHistoryFilter = type;
+        
+        if (type === 'month') {
+            currentSubFilterValue = new Date().getMonth();
+            renderSubFilters('month');
+        } else if (type === 'week') {
+            currentSubFilterValue = getCurrentWeek();
+            renderSubFilters('week');
+        } else {
+            document.getElementById('subFilters').style.display = 'none';
+        }
+        
+        loadHistory();
+    }
+
+    function renderSubFilters(type) {
+        let container = document.getElementById('subFilters');
+        container.innerHTML = '';
+        container.style.display = 'flex';
+        
+        if (type === 'month') {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            months.forEach((m, idx) => {
+                let div = document.createElement('div');
+                div.className = `cat-bubble ${idx === currentSubFilterValue ? 'active' : ''}`;
+                div.innerText = m;
+                div.onclick = () => setSubFilter(idx, div);
+                container.appendChild(div);
+            });
+        } else if (type === 'week') {
+            for(let i = 1; i <= 5; i++) {
+                let div = document.createElement('div');
+                div.className = `cat-bubble ${i === currentSubFilterValue ? 'active' : ''}`;
+                div.innerText = `Week ${i}`;
+                div.onclick = () => setSubFilter(i, div);
+                container.appendChild(div);
+            }
+        }
+        setTimeout(() => {
+            let activeEl = container.querySelector('.active');
+            if(activeEl) activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }, 100);
+    }
+
+    function setSubFilter(val, el) {
+        document.querySelectorAll('#subFilters .cat-bubble').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        currentSubFilterValue = val;
+        loadHistory();
+    }
+
+    function loadHistory() {
+        let q = document.getElementById('search').value.toLowerCase();
+        let today = getLocalDateString(new Date());
+        
+        let now = new Date();
+        let currYear = now.getFullYear();
+        let currMonth = now.getMonth();
+
+        let filtered = expenses.filter(e => {
+            let matchesSearch = e.desc.toLowerCase().includes(q) || e.cat.toLowerCase().includes(q);
+            if(!matchesSearch) return false;
+            
+            let d = new Date(e.date);
+            
+            if(currentHistoryFilter === 'today') return e.date === today;
+            if(currentHistoryFilter === 'week') {
+                if (d.getFullYear() !== currYear || d.getMonth() !== currMonth) return false;
+                let day = d.getDate();
+                let weekNum = Math.ceil(day / 7);
+                if (weekNum > 4) weekNum = 5;
+                return weekNum === currentSubFilterValue;
+            }
+            if(currentHistoryFilter === 'month') {
+                return d.getFullYear() === currYear && d.getMonth() === currentSubFilterValue;
+            }
+            if(currentHistoryFilter === 'all') return true; 
+            
+            return true;
+        });
+
+        let fTitle = "Total";
+        if(currentHistoryFilter === 'today') fTitle = "Total (Today)";
+        else if(currentHistoryFilter === 'week') fTitle = `Total (Week ${currentSubFilterValue})`;
+        else if(currentHistoryFilter === 'month') {
+            const mNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            fTitle = `Total (${mNames[currentSubFilterValue]})`;
+        }
+        else if(currentHistoryFilter === 'all') fTitle = "Total (All Time)";
+        document.getElementById('filterTitle').innerText = fTitle;
+
+        document.getElementById('historyTotalDisplay').innerText = `Rs. ${filtered.reduce((s, e) => s + e.amt, 0).toFixed(2)}`;
+        let log = document.getElementById('historyLog'); log.innerHTML = '';
+        if(filtered.length === 0) log.innerHTML = '<p style="text-align:center; font-size:13px; color:var(--text-muted); padding: 20px 0;">No records found.</p>';
+        else {
+            filtered.sort((a,b) => b.id - a.id).forEach(e => {
+                log.innerHTML += `<div class="swipe-wrapper" ontouchstart="handleItemSwipeStart(event)" ontouchmove="handleItemSwipeMove(event)" ontouchend="handleItemSwipeEnd(event)">
+                    <div class="swipe-content" data-swiped="false">
+                        <div class="item-info"><h4>${e.desc}</h4><p>${e.date} &nbsp;•&nbsp; ${e.cat}</p></div>
+                        <span class="item-amount" style="color:var(--text);">Rs. ${e.amt.toFixed(2)}</span>
+                    </div>
+                    <div class="swipe-actions">
+                        <button class="icon-btn btn-del" onclick="promptDelete(${e.id}, execDeleteExp)"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>`;
+            });
+        }
+        window.currentFilteredData = filtered;
+    }
+
+    let swipeStartX = 0;
+    let swipeCurrentX = 0;
+    let activeSwipeElement = null;
+
+    function handleItemSwipeStart(e) {
+        document.querySelectorAll('.swipe-content').forEach(el => {
+            if (el !== e.currentTarget.querySelector('.swipe-content')) {
+                el.style.transform = 'translateX(0)';
+                el.dataset.swiped = 'false';
+            }
+        });
+        swipeStartX = e.touches[0].clientX;
+        swipeCurrentX = swipeStartX;
+        activeSwipeElement = e.currentTarget.querySelector('.swipe-content');
+        activeSwipeElement.style.transition = 'none';
+    }
+
+    function handleItemSwipeMove(e) {
+        if (!activeSwipeElement) return;
+        swipeCurrentX = e.touches[0].clientX;
+        let diff = swipeCurrentX - swipeStartX;
+        let actionsWidth = activeSwipeElement.nextElementSibling.offsetWidth;
+        if (activeSwipeElement.dataset.swiped === 'true') diff = diff - actionsWidth; 
+        if (diff <= 0 && diff >= -actionsWidth - 20) activeSwipeElement.style.transform = `translateX(${diff}px)`;
+    }
+
+    function handleItemSwipeEnd(e) {
+        if (!activeSwipeElement) return;
+        activeSwipeElement.style.transition = 'transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        let diff = swipeCurrentX - swipeStartX;
+        let actionsWidth = activeSwipeElement.nextElementSibling.offsetWidth;
+        
+        if (activeSwipeElement.dataset.swiped === 'true') {
+            if (diff > 20) {
+                activeSwipeElement.style.transform = `translateX(0)`;
+                activeSwipeElement.dataset.swiped = 'false';
+            } else {
+                activeSwipeElement.style.transform = `translateX(-${actionsWidth}px)`;
+            }
+        } else {
+            if (diff < -30) {
+                activeSwipeElement.style.transform = `translateX(-${actionsWidth}px)`;
+                activeSwipeElement.dataset.swiped = 'true';
+            } else {
+                activeSwipeElement.style.transform = `translateX(0)`;
+            }
+        }
+        activeSwipeElement = null;
+    }
+
+    function updateStatsTab() {
+        let now = new Date(), todayStr = getLocalDateString(now);
+        let yest = new Date(now); yest.setDate(now.getDate() - 1); let yestStr = getLocalDateString(yest);
+        
+        let wStart = new Date(now); wStart.setDate(now.getDate() - 6); let wStartStr = getLocalDateString(wStart);
+        let pwEnd = new Date(now); pwEnd.setDate(now.getDate() - 7); let pwEndStr = getLocalDateString(pwEnd);
+        let pwStart = new Date(now); pwStart.setDate(now.getDate() - 13); let pwStartStr = getLocalDateString(pwStart);
+        
+        let thisMonthStr = todayStr.substring(0, 7);
+        let lm = new Date(now.getFullYear(), now.getMonth() - 1, 1); let lmStr = getLocalDateString(lm).substring(0, 7);
+
+        let tT = 0, tY = 0, tW = 0, tpW = 0, tM = 0, tpM = 0, tAll = 0;
+        expenses.forEach(e => {
+            tAll += e.amt; 
+            if(e.date === todayStr) tT += e.amt; 
+            if(e.date === yestStr) tY += e.amt;
+            if(e.date >= wStartStr && e.date <= todayStr) tW += e.amt; 
+            if(e.date >= pwStartStr && e.date <= pwEndStr) tpW += e.amt;
+            if(e.date.startsWith(thisMonthStr)) tM += e.amt; 
+            if(e.date.startsWith(lmStr)) tpM += e.amt;
+        });
+
+        document.getElementById('compToday').innerText = tT.toFixed(0); updateTrendUI('trendToday', tT, tY);
+        document.getElementById('compWeek').innerText = tW.toFixed(0); updateTrendUI('trendWeek', tW, tpW);
+        document.getElementById('compMonth').innerText = tM.toFixed(0); updateTrendUI('trendMonth', tM, tpM);
+        
+        if(document.getElementById('allTimeTotalDisplay')) {
+            document.getElementById('allTimeTotalDisplay').innerText = `Rs. ${tAll.toFixed(2)}`;
+        }
+        
+        renderChart();
+    }
+
+    function updateTrendUI(id, curr, prev) {
+        let el = document.getElementById(id);
+        if(prev === 0) { el.className = 'trend neutral'; el.innerText = curr > 0 ? '+100% More' : 'No Data'; return; }
+        let diff = curr - prev, p = (Math.abs(diff) / prev) * 100;
+        if(diff > 0) { el.className = 'trend up'; el.innerText = `+${p.toFixed(1)}% More`; }
+        else if(diff < 0) { el.className = 'trend down'; el.innerText = `-${p.toFixed(1)}% Less`; }
+        else { el.className = 'trend neutral'; el.innerText = '0% Same'; }
+    }
+
+    function renderChart() {
+        let ctx = document.getElementById('myChart').getContext('2d');
+        if(chart) chart.destroy();
+        let d = {}; expenses.forEach(e => d[e.cat] = (d[e.cat] || 0) + e.amt);
+        let isDark = document.body.getAttribute('data-theme') === 'dark';
+        let grad = ctx.createLinearGradient(0, 0, 0, 250);
+        grad.addColorStop(0, '#10b981'); grad.addColorStop(1, '#064e3b');
+        chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: Object.keys(d), datasets: [{ data: Object.values(d), backgroundColor: grad, borderRadius: 12, barThickness: 25 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { display: false }, ticks: { color: isDark?'#94a3b8':'#64748b' } }, x: { grid: { display: false }, ticks: { color: isDark?'#94a3b8':'#64748b' } } } }
+        });
+    }
+
+    function updateSavingsTab() {
+        document.getElementById('totalSavingsDisplay').innerText = `Rs. ${savingsData.balance.toFixed(2)}`;
+        let totDep = savingsData.history.filter(tx => tx.type === 'deposit').reduce((sum, tx) => sum + tx.amount, 0);
+        document.getElementById('totalDepositedDisplay').innerText = `Rs. ${totDep.toFixed(2)}`;
+        let log = document.getElementById('savingsLog'); log.innerHTML = '';
+        if (savingsData.history.length === 0) log.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding: 20px 0;">No history yet.</p>';
+        else {
+            [...savingsData.history].reverse().forEach(tx => {
+                let isDep = tx.type === 'deposit';
+                log.innerHTML += `<div class="list-item"><div style="display:flex; align-items:center; gap:12px;"><div style="background:${isDep?'#10b98120':'#ef444420'}; color:${isDep?'#10b981':'#ef4444'}; width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center;"><i class="fas fa-${isDep?'arrow-down':'arrow-up'}"></i></div><div class="item-info"><h4>${isDep?'Deposit':'Withdraw'}</h4><p>${tx.date}</p></div></div><span style="font-weight:700; color:${isDep?'#10b981':'#ef4444'}">${isDep?'+':'-'} Rs. ${tx.amount.toFixed(2)}</span></div>`;
+            });
+        }
+        
+        renderGoalTracker();
+    }
+
+    function setTransactionType(type) {
+        let btn = document.getElementById('savingsSubmitBtn'), lbl = document.getElementById('savingsActionLabel');
+        lbl.innerText = `Amount to ${type} (Rs.)`; btn.innerText = `Confirm ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+        btn.style.background = (type === 'deposit') ? 'var(--success)' : 'var(--danger)';
+        btn.onclick = () => processSavingsTransaction(type);
+    }
+
+    function processSavingsTransaction(type) {
+        let amt = parseFloat(document.getElementById('savingsAmountInput').value);
+        if (!amt || amt <= 0) { showToast("Error", "Enter a valid amount.", true); return; }
+        if (type === 'withdraw' && amt > savingsData.balance) { showToast("Error", "Low savings balance!", true); return; }
+        
+        if (type === 'deposit') savingsData.balance += amt; else savingsData.balance -= amt;
+        savingsData.history.push({ id: Date.now(), date: getLocalDateString(new Date()), type: type, amount: amt });
+        localStorage.setItem('campus_savings', JSON.stringify(savingsData));
+        document.getElementById('savingsAmountInput').value = ''; updateSavingsTab();
+        showToast("Success", `Transaction completed.`);
+    }
+
+    // --- ENHANCED MULTIPLE GOALS TRACKER FUNCTIONS ---
+    
+    function startSavingsGoal() {
+        let name = document.getElementById('goalNameInput').value.trim();
+        let amt = parseFloat(document.getElementById('goalTargetInput').value);
+        
+        if (!name) { showToast("Error", "Please enter a goal name.", true); return; }
+        if (!amt || amt <= 0) { showToast("Error", "Enter a valid target amount.", true); return; }
+        
+        let partAmt = 100; // Divided into Rs. 100 blocks
+        let numParts = Math.ceil(amt / partAmt); 
+        
+        let parts = [];
+        for(let i=1; i<=numParts; i++) {
+            parts.push({ id: i, isPaid: false });
+        }
+        
+        let newGoal = {
+            id: Date.now(),
+            name: name,
+            target: amt,
+            partAmt: partAmt,
+            parts: parts,
+            isCompleted: false
+        };
+        
+        goalsList.push(newGoal);
+        localStorage.setItem('campus_savings_goals', JSON.stringify(goalsList));
+        
+        // Reset Inputs
+        document.getElementById('goalNameInput').value = '';
+        document.getElementById('goalTargetInput').value = '';
+        
+        showToast("Goal Started!", `Save Rs. ${partAmt} at a time for ${name}!`);
+        
+        // Auto-expand the newly created goal
+        expandedGoalId = newGoal.id;
+        renderGoalTracker();
+    }
+
+    function toggleGoalDetails(goalId) {
+        // If clicking the currently expanded goal, collapse it. Otherwise, expand the clicked one.
+        if (expandedGoalId === goalId) {
+            expandedGoalId = null;
+        } else {
+            expandedGoalId = goalId;
+        }
+        renderGoalTracker();
+    }
+
+    function editSavingsGoal(goalId) {
+        let goal = goalsList.find(g => g.id === goalId);
+        if(!goal) return;
+        
+        let newAmt = prompt(`Enter new target amount for '${goal.name}' (Rs.):`, goal.target);
+        if(newAmt === null) return;
+        newAmt = parseFloat(newAmt);
+        if (!newAmt || newAmt <= 0) { showToast("Error", "Invalid amount.", true); return; }
+
+        let newNumParts = Math.ceil(newAmt / goal.partAmt);
+        let currentParts = goal.parts;
+
+        if (newNumParts > currentParts.length) {
+            for(let i = currentParts.length + 1; i <= newNumParts; i++) {
+                currentParts.push({ id: i, isPaid: false });
+            }
+        } else if (newNumParts < currentParts.length) {
+            currentParts = currentParts.slice(0, newNumParts);
+        }
+
+        goal.target = newAmt;
+        goal.parts = currentParts;
+        goal.isCompleted = false; 
+        
+        localStorage.setItem('campus_savings_goals', JSON.stringify(goalsList));
+        showToast("Updated", "Goal target updated!");
+        renderGoalTracker();
+    }
+
+    function clearSavingsGoal(goalId) {
+        if(confirm("Are you sure you want to completely delete this goal?")) {
+            goalsList = goalsList.filter(g => g.id !== goalId);
+            localStorage.setItem('campus_savings_goals', JSON.stringify(goalsList));
+            
+            if(expandedGoalId === goalId) expandedGoalId = null;
+            renderGoalTracker();
+        }
+    }
+
+    function toggleGoalPart(goalId, partId) {
+        let goal = goalsList.find(g => g.id === goalId);
+        if(!goal || goal.isCompleted) return;
+        
+        let part = goal.parts.find(p => p.id === partId);
+        if(part) {
+            part.isPaid = !part.isPaid;
+            
+            // Check if goal is fully completed
+            let allPaid = goal.parts.every(p => p.isPaid);
+            if (allPaid && !goal.isCompleted) {
+                goal.isCompleted = true;
+                
+                // AUTO SAVE to main savings balance
+                let totalSaved = goal.parts.length * goal.partAmt;
+                savingsData.balance += totalSaved;
+                savingsData.history.push({ id: Date.now(), date: getLocalDateString(new Date()), type: 'deposit', amount: totalSaved });
+                
+                localStorage.setItem('campus_savings', JSON.stringify(savingsData));
+                
+                showToast("Goal Completed! 🎉", `Rs. ${totalSaved} auto-saved to your balance!`);
+                updateSavingsTab(); // Will refresh balance and history automatically
+            }
+            
+            localStorage.setItem('campus_savings_goals', JSON.stringify(goalsList));
+            renderGoalTracker();
+        }
+    }
+
+    function renderGoalTracker() {
+        let container = document.getElementById('goalsContainer');
+        container.innerHTML = '';
+        
+        if(goalsList.length === 0) {
+            container.innerHTML = '<p style="font-size:13px; color:var(--text-muted); text-align:center; padding: 20px 0;">No active goals. Create one above!</p>';
+            return;
+        }
+        
+        // Clone and reverse to show newest goals on top
+        let sortedGoals = [...goalsList].reverse();
+        
+        sortedGoals.forEach(goal => {
+            let paidCount = 0;
+            let unpaidParts = [];
+            let paidParts = [];
+            
+            goal.parts.forEach(p => {
+                if(p.isPaid) { paidCount++; paidParts.push(p); }
+                else { unpaidParts.push(p); }
+            });
+            
+            let unpaidCount = goal.parts.length - paidCount;
+            let paidAmt = paidCount * goal.partAmt;
+            let unpaidAmt = unpaidCount * goal.partAmt;
+            
+            let isExpanded = (expandedGoalId === goal.id);
+            
+            let goalCard = document.createElement('div');
+            goalCard.className = 'goal-card';
+            
+            // Header Section (Always Visible)
+            let checkIcon = goal.isCompleted ? `<i class="fas fa-check-circle" style="color:var(--success); font-size:14px; margin-left: 5px;"></i>` : '';
+            let chevronIcon = isExpanded ? 'fa-chevron-up' : 'fa-chevron-down';
+            
+            let headerHtml = `
+                <div class="goal-header" onclick="toggleGoalDetails(${goal.id})">
+                    <div>
+                        <h4>${goal.name} ${checkIcon}</h4>
+                        <p>Rs. ${paidAmt.toFixed(0)} saved / Rs. ${goal.target.toFixed(0)}</p>
+                    </div>
+                    <i class="fas ${chevronIcon}" style="color:var(--text-muted);"></i>
+                </div>
+            `;
+            
+            // Body Section (Hidden by Default)
+            let bodyHtml = '';
+            if (isExpanded) {
+                let completedBanner = goal.isCompleted ? `
+                    <div class="goal-completed-banner" style="display:block;">
+                        <i class="fas fa-check-circle" style="font-size: 20px; margin-bottom: 5px;"></i><br>
+                        Goal Completed! Amount Auto-Saved.
+                    </div>
+                ` : '';
+                
+                // Sort blocks: Red (unpaid) on top, Green (paid) at bottom
+                let sortedGridParts = [...unpaidParts, ...paidParts];
+                let gridHtml = '';
+                sortedGridParts.forEach(p => {
+                    gridHtml += `
+                        <div class="goal-box ${p.isPaid ? 'paid' : 'unpaid'}" onclick="toggleGoalPart(${goal.id}, ${p.id})">
+                            <span>Part ${p.id}</span> Rs.${goal.partAmt.toFixed(0)}
+                        </div>
+                    `;
+                });
+                
+                let helpText = !goal.isCompleted ? `<p style="font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 10px;">Tap on a red box when you save that Rs. 100!</p>` : '';
+                
+                bodyHtml = `
+                <div class="goal-body active">
+                    ${completedBanner}
+                    <div class="goal-summary">
+                        <div style="color: var(--danger);">
+                            <span style="font-size:11px; text-transform:uppercase;">To Collect</span><br>
+                            <b style="font-size: 16px;">${unpaidCount}</b> Parts<br>
+                            Rs. ${unpaidAmt.toFixed(0)}
+                        </div>
+                        <div style="color: var(--success); text-align: right;">
+                            <span style="font-size:11px; text-transform:uppercase;">Collected</span><br>
+                            <b style="font-size: 16px;">${paidCount}</b> Parts<br>
+                            Rs. ${paidAmt.toFixed(0)}
+                        </div>
+                    </div>
+                    
+                    ${helpText}
+                    <div class="goal-grid" style="${goal.isCompleted ? 'opacity:0.5; pointer-events:none;' : ''}">
+                        ${gridHtml}
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button class="btn" onclick="editSavingsGoal(${goal.id})" style="background: var(--edit); font-size: 13px; padding: 12px; flex: 1;"><i class="fas fa-edit"></i> Edit Target</button>
+                        <button class="btn" onclick="clearSavingsGoal(${goal.id})" style="background: var(--bubble-bg); color: var(--text); box-shadow: none; padding: 12px; font-size: 13px; flex: 1;"><i class="fas fa-trash"></i> Delete Goal</button>
+                    </div>
+                </div>`;
+            }
+            
+            goalCard.innerHTML = headerHtml + bodyHtml;
+            container.appendChild(goalCard);
+        });
+    }
+
+    function exportPDF() {
+        let data = window.currentFilteredData || expenses; 
+        if(!data.length) { showToast("Empty", "No data to export.", true); return; }
+        showToast("Generating PDF...", "Please wait a moment.");
+        
+        let total = data.reduce((s,e)=>s+e.amt,0).toFixed(2);
+        let dateGenerated = new Date().toLocaleDateString();
+        
+        let html = `
+        <div style="padding: 40px; font-family: 'Inter', Helvetica, Arial, sans-serif; color: #0f172a; background: #ffffff;">
+            <div style="border-bottom: 3px solid #10b981; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h1 style="margin: 0; color: #0f172a; font-size: 28px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.5px;">EXPENSE REPORT</h1>
+                    <p style="margin: 5px 0 0 0; color: #10b981; font-size: 14px; font-weight: 600;">Campus Wallet Pro</p>
+                </div>
+                <div style="text-align: right;">
+                    <p style="margin: 0; color: #64748b; font-size: 13px;">Generated: <strong>${dateGenerated}</strong></p>
+                    <p style="margin: 5px 0 0 0; color: #64748b; font-size: 13px;">Total Records: <strong>${data.length}</strong></p>
+                </div>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                        <th style="padding: 14px 12px; text-align: left; color: #334155; font-weight: 700; text-transform: uppercase;">Date</th>
+                        <th style="padding: 14px 12px; text-align: left; color: #334155; font-weight: 700; text-transform: uppercase;">Description</th>
+                        <th style="padding: 14px 12px; text-align: left; color: #334155; font-weight: 700; text-transform: uppercase;">Category</th>
+                        <th style="padding: 14px 12px; text-align: right; color: #334155; font-weight: 700; text-transform: uppercase;">Amount (Rs.)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(e=>`
+                    <tr style="border-bottom: 1px solid #e2e8f0;">
+                        <td style="padding: 14px 12px; color: #475569;">${e.date}</td>
+                        <td style="padding: 14px 12px; color: #0f172a; font-weight: 600;">${e.desc}</td>
+                        <td style="padding: 14px 12px; color: #64748b;">${e.cat}</td>
+                        <td style="padding: 14px 12px; text-align: right; color: #ef4444; font-weight: 700;">${e.amt.toFixed(2)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            
+            <div style="display: flex; justify-content: flex-end;">
+                <div style="background-color: #f8fafc; padding: 20px 30px; border-radius: 16px; border: 1px solid #e2e8f0; min-width: 250px;">
+                    <p style="margin: 0 0 5px 0; color: #64748b; font-size: 13px; text-transform: uppercase; font-weight: 600;">Total Expenses</p>
+                    <h2 style="margin: 0; color: #10b981; font-size: 26px; font-weight: 800;">Rs. ${total}</h2>
+                </div>
+            </div>
+        </div>`;
+        
+        let opt = {
+            margin: 0,
+            filename: `Expense_Report_${dateGenerated.replace(/\//g, '-')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+        };
+        html2pdf().set(opt).from(html).save();
+    }
+
+    function exportExcel() {
+        let data = window.currentFilteredData || expenses; 
+        if(!data.length) { showToast("Empty", "No data to export.", true); return; }
+        let ws = XLSX.utils.json_to_sheet(data.map(e=>({Date:e.date, Description:e.desc, Category:e.cat, Amount:e.amt})));
+        let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+        XLSX.writeFile(wb, "Expenses.xlsx");
+        showToast("Success", "Excel file downloaded.");
+    }
+
+    // Initialize App
+    refresh();
+    renderSubFilters('month'); 
+    renderGoalTracker(); // Render the multiple goals layout
+    
+    setTimeout(fetchFromCloud, 1000);
+
+    if ('serviceWorker' in navigator) {
+        try {
+            navigator.serviceWorker.register('sw.js').catch(() => {
+                console.log("Service Worker registration skipped or failed in this environment.");
+            });
+        } catch(e) {
+            console.log("PWA features not available in current context.");
+        }
+    }
+</script>
+</body>
+</html>
